@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IDC Design System - Vertical Layout</title>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0D0E1A;
+            --card: #161728;
+            --card-active-glow: #1C1E33;
+            --border-subtle: rgba(255,255,255,0.06);
+            --crimson: #E0185A;
+            --green: #39FF14;
+            --violet-border: rgba(108,63,219,0.4);
+            --violet-glow: #6C3FDB;
+            --text-primary: #FFFFFF;
+            --text-muted: #8A8FAD;
+            --text-dim: #5A5D78;
+            --font: 'Inter', system-ui, sans-serif;
+        }
+        
+        * { box-sizing: border-box; }
+        ::-webkit-scrollbar { width: 0; height: 0; }
+        
+        body {
+            background-color: #1a1a1a;
+            color: var(--text-primary);
+            font-family: var(--font);
+            margin: 0;
+            padding: 60px 0;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 60px;
+        }
+        
+        .screen-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .screen-label {
+            font-size: 16px;
+            font-weight: 600;
+            color: #8A8FAD;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .screen {
+            display: flex;
+            flex-direction: column;
+            width: 412px;
+            height: 915px;
+            position: relative;
+            background-color: var(--bg);
+            overflow: hidden;
+            flex-shrink: 0;
+            border-radius: 36px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            border: 8px solid #2a2a2a;
+        }
+
+        /* ONE Reusable Pill Component */
+        .island-pill {
+            height: 44px;
+            width: 68%; /* Reduced from 85% to ensure clearance for back chevron */
+            margin: 0 auto;
+            margin-top: 30px;
+            background: rgba(22, 23, 40, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--violet-border);
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            justify-content: space-evenly;
+            padding: 4px;
+            z-index: 50;
+            position: relative;
+            flex-shrink: 0;
+        }
+        
+        .island-pill button {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            border-radius: 999px;
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 400;
+            cursor: default;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+        }
+        .island-pill button.active {
+            background-color: var(--crimson);
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+        .island-pill .static-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding: 0 12px;
+            font-size: 13px;
+        }
+        
+        .static-content .left-sec, .static-content .right-sec {
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        /* Back Chevron */
+        .back-chevron {
+            position: absolute;
+            top: 36px;
+            left: 16px;
+            color: var(--text-muted);
+            background: none;
+            border: none;
+            cursor: default;
+            z-index: 60;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+        }
+
+        /* ONE Reusable Card Component */
+        .card {
+            background-color: var(--card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 16px;
+            transition: background-color 0.2s;
+            cursor: default;
+        }
+        button.card, .card.clickable {
+            border: 1px solid var(--border-subtle);
+            text-align: left;
+            width: 100%;
+            display: block;
+            color: var(--text-primary);
+        }
+        .card.active-crimson {
+            border-color: var(--crimson);
+        }
+
+        /* ONE Reusable Toggle Switch */
+        .toggle {
+            width: 36px;
+            height: 20px;
+            border-radius: 10px;
+            background-color: #2A2C42;
+            position: relative;
+            cursor: default;
+            border: none;
+            padding: 0;
+            flex-shrink: 0;
+        }
+        .toggle::after {
+            content: '';
+            position: absolute;
+            left: 2px;
+            top: 2px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: var(--text-dim);
+            transition: transform 0.3s, background-color 0.3s;
+        }
+        .toggle.on {
+            background-color: var(--green);
+        }
+        .toggle.on::after {
+            transform: translateX(16px);
+            background-color: var(--text-primary); /* Changed to var(--text-primary) */
+        }
+        
+        /* Agent Buttons */
+        .btn-approve {
+            flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: 600; cursor: default;
+            background-color: var(--green); 
+            /* INTENTIONAL DARK ON BRIGHT BUTTON - using var(--bg) for high contrast legibility */
+            color: var(--bg); 
+            font-family: inherit; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .btn-deny {
+            flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: 600; cursor: default;
+            background-color: var(--card-active-glow); color: var(--text-muted); font-family: inherit; font-size: 13px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        
+        /* Input & Form */
+        input[type="text"] {
+            background-color: var(--bg);
+            color: var(--text-primary); /* Ensure no default browser black applies */
+            border: 1px solid var(--border-subtle);
+            border-radius: 999px;
+            padding: 12px 16px 12px 48px;
+            width: 100%;
+            font-family: inherit;
+            font-size: 16px;
+        }
+        input[type="text"]::placeholder {
+            color: var(--text-dim);
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--crimson);
+        }
+        .input-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+        
+        .btn-primary {
+            width: 100%;
+            background-color: var(--crimson);
+            color: var(--text-primary);
+            border: none;
+            border-radius: 999px;
+            padding: 16px;
+            font-weight: 700;
+            font-size: 18px;
+            cursor: default;
+            box-shadow: 0 4px 20px rgba(224,24,90,0.3);
+            font-family: inherit;
+        }
+
+        /* Typography overrides */
+        .text-crimson { color: var(--crimson); }
+        .text-green { color: var(--green); }
+        .text-muted { color: var(--text-muted); }
+        .text-dim { color: var(--text-dim); }
+        .text-primary { color: var(--text-primary); }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* Keyboard specific overrides imported from original design just mapping to vars */
+        .key-btn {
+            background: var(--card); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: center;
+            border-radius: 8px; font-size: 14px; color: var(--text-primary); user-select: none; transition: transform 0.1s, background-color 0.1s; height: 100%;
+        }
+        .mod-key { background: var(--card-active-glow); color: var(--text-muted); font-size: 12px; }
+        .media-btn {
+            width: 44px; height: 44px; border-radius: 22px; background: var(--card); border: 1px solid var(--border-subtle);
+            color: var(--text-muted); display: flex; align-items: center; justify-content: center; transition: all 0.1s; border: none;
+        }
+        
+        .layout-row { display: flex; gap: 4px; width: 100%; }
+        
+        .main-content {
+            flex: 1;
+            padding: 24px 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        /* Utility */
+        .flex { display: flex; }
+        .flex-col { display: flex; flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .justify-center { justify-content: center; }
+        .gap-2 { gap: 8px; }
+        .gap-3 { gap: 12px; }
+        .gap-4 { gap: 16px; }
+        .p-4 { padding: 16px; }
+        .flex-1 { flex: 1; }
+        .mt-4 { margin-top: 16px; }
+        .w-full { width: 100%; }
+        .text-sm { font-size: 14px; }
+        .text-xs { font-size: 12px; }
+        .font-bold { font-weight: bold; }
+        .truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        /* Gate connection specifics */
+        .pulse-ring {
+            position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+            width: 120px; height: 120px; border-radius: 50%;
+            background-color: rgba(224, 24, 90, 0.2); 
+            animation: pulse 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .pulse-ring:nth-child(2) { animation-delay: 1s; }
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+        }
+        
+        /* Gate manual IP fixed at bottom */
+        .gate-btn-wrapper { margin-top: auto; padding-bottom: 40px; display: flex; justify-content: center;}
+        .gate-btn-manual { 
+            color: var(--text-muted); padding: 8px 16px; border-radius: 999px; cursor: default;
+            background: transparent; border: 1px solid transparent; transition: all 0.2s; font-family: inherit; font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="screen-wrapper">
+    <div class="screen-label">1. Gate — Connection</div>
+    
+<section class="screen" id="gate_connection" style="align-items:center; justify-content:center;">
+    <div style="position:relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; flex:1;">
+        <div style="position:relative; width:200px; height:200px; display:flex; justify-content:center; align-items:center;">
+            <div class="pulse-ring"></div>
+            <div class="pulse-ring"></div>
+            <div style="width:64px; height:64px; border-radius:50%; background:var(--crimson); display:flex; justify-content:center; align-items:center; z-index:20; box-shadow:0 0 20px var(--crimson);">
+                <span class="material-symbols-outlined text-primary" style="font-size:32px;">desktop_windows</span>
+            </div>
+        </div>
+        <div style="text-align:center; margin-top:24px;">
+            <h2 class="text-primary" style="font-size:24px; font-weight:bold; margin-bottom:8px;">Looking for PC...</h2>
+            <p class="text-muted text-sm">Scanning local network</p>
+        </div>
+        
+        <div class="gate-btn-wrapper w-full absolute bottom-0">
+            <button class="gate-btn-manual">Enter IP Manually</button>
+        </div>
+    </div>
+</section>
+
+</div>
+
+
+<div class="screen-wrapper">
+    <div class="screen-label">2. Gate — Manual Entry</div>
+    
+<section class="screen" id="gate_connection_manual">
+    <div class="main-content" style="justify-content:flex-end; padding-bottom: 40px !important;">
+        <!-- Retain identical background logic for the upper 3/4ths implicitly by not filling it, allowing the background gradient or pure var(--bg) to show -->
+        <div class="card flex flex-col gap-4" style="background-color: var(--card); border-color: var(--border-subtle); padding: 24px; border-radius: 24px; align-self: flex-end; width: 100%;">
+            <div>
+                <label for="ip-input" class="text-muted font-bold text-xs" style="margin-left: 8px; margin-bottom: 8px; display: block; text-transform: uppercase; letter-spacing: 1px;">Device IP Address</label>
+                <div style="position:relative; display:flex; align-items:center; width: 100%;">
+                    <span class="material-symbols-outlined input-icon">wifi_tethering</span>
+                    <input type="text" id="ip-input" placeholder="192.168.x.x">
+                </div>
+            </div>
+            
+            <button class="btn-primary mt-4">Connect</button>
+            <button class="gate-btn-manual" style="width: 100%; margin-top: 8px;">Back to Scanning</button>
+        </div>
+    </div>
+</section>
+
+</div>
+
+
+<div class="screen-wrapper">
+    <div class="screen-label">3. Main Hub</div>
+    
+<section class="screen" id="main_hub">
+    <div class="island-pill">
+        <div class="static-content">
+            <div class="left-sec font-bold text-sm" style="color: var(--text-primary);">
+                <span class="material-symbols-outlined text-crimson">monitor</span>
+                ARCH-RIG
+            </div>
+            <div class="right-sec text-xs text-green">
+                <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green);"></div>
+                Connected
+            </div>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div class="flex gap-3 w-full">
+            <div class="card active-crimson flex-1 flex flex-col justify-between" style="min-height: 140px; position:relative; overflow:hidden;">
+                <div style="position:absolute; inset:0; background: radial-gradient(circle at top left, rgba(224,24,90,0.15), transparent 70%);"></div>
+                <div style="position:relative; z-index:2;">
+                    <span class="material-symbols-outlined text-crimson">mic</span>
+                    <div class="mt-4 font-bold text-primary">Microphone</div>
+                    <div class="text-xs text-crimson mt-1">Active</div>
+                </div>
+                <div class="flex justify-end relative z-10">
+                    <button class="toggle on"></button>
+                </div>
+            </div>
+            
+            <div class="card flex-1 flex flex-col justify-between" style="min-height: 140px;">
+                <div>
+                    <span class="material-symbols-outlined text-muted">videocam</span>
+                    <div class="mt-4 font-bold text-primary">Camera</div>
+                    <div class="text-xs text-dim mt-1">Off</div>
+                </div>
+                <div class="flex justify-end">
+                    <button class="toggle"></button>
+                </div>
+            </div>
+        </div>
+        
+        <button class="card clickable flex items-center justify-between mt-4">
+            <div class="flex items-center gap-3">
+                <div style="width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;">
+                    <span class="material-symbols-outlined text-muted">sensors</span>
+                </div>
+                <div>
+                    <div class="font-bold text-sm text-primary">Sensors</div>
+                    <div class="text-xs text-crimson mt-1">3 Active</div>
+                </div>
+            </div>
+            <span class="material-symbols-outlined text-dim">chevron_right</span>
+        </button>
+        
+        <button class="card clickable flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div style="width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;">
+                    <span class="material-symbols-outlined text-muted">sports_esports</span>
+                </div>
+                <div>
+                    <div class="font-bold text-sm text-primary">Remote Control</div>
+                    <div class="text-xs text-dim mt-1">Idle</div>
+                </div>
+            </div>
+            <span class="material-symbols-outlined text-dim">chevron_right</span>
+        </button>
+
+        <button class="card clickable flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div style="width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;">
+                    <span class="material-symbols-outlined text-muted">inbox</span>
+                </div>
+                <div>
+                    <div class="font-bold text-sm text-primary">Inbox & Transfers</div>
+                    <div class="text-xs text-crimson mt-1">2 New</div>
+                </div>
+            </div>
+            <span class="material-symbols-outlined text-dim">chevron_right</span>
+        </button>
+    </div>
+</section>
+
+</div>
+
+
+<div class="screen-wrapper">
+    <div class="screen-label">4. Sensors Detail</div>
+    
+<section class="screen" id="sensors_detail">
+    <button class="back-chevron"><span class="material-symbols-outlined">chevron_left</span></button>
+    
+    <div class="island-pill">
+        <div class="static-content" style="justify-content:center;">
+            <div class="font-bold text-sm text-primary" style="display:flex; align-items:center; gap:8px;">
+                <span class="material-symbols-outlined text-muted">sensors</span>
+                Sensors
+                <span class="text-dim">•</span>
+                <span class="text-crimson">3 Active</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div class="card flex items-center justify-between">
+            <div>
+                <div class="font-bold text-sm text-primary">Location (GPS)</div>
+                <div class="text-xs text-muted mt-1">High accuracy mode</div>
+            </div>
+            <button class="toggle on"></button>
+        </div>
+        <div class="card flex items-center justify-between">
+            <div>
+                <div class="font-bold text-sm text-primary">Accelerometer</div>
+                <div class="text-xs text-muted mt-1">Motion tracking active</div>
+            </div>
+            <button class="toggle on"></button>
+        </div>
+        <div class="card flex items-center justify-between">
+            <div>
+                <div class="font-bold text-sm text-primary">Gyroscope</div>
+                <div class="text-xs text-muted mt-1">Orientation tracking active</div>
+            </div>
+            <button class="toggle on"></button>
+        </div>
+        <div class="card flex items-center justify-between">
+            <div>
+                <div class="font-bold text-sm text-primary">Ambient Light</div>
+                <div class="text-xs text-muted mt-1">Off</div>
+            </div>
+            <button class="toggle"></button>
+        </div>
+    </div>
+</section>
+
+</div>
+
+
+<div class="screen-wrapper">
+    <div class="screen-label">5. Remote Mouse</div>
+    
+<section class="screen" id="remote_mouse">
+    <button class="back-chevron"><span class="material-symbols-outlined">chevron_left</span></button>
+    <div class="island-pill">
+    <button class="active">Mouse</button>
+    <button class="">Touch</button>
+    <button class="">Keyboard</button>
+</div>
+
+    
+    <div class="main-content" style="align-items:center; justify-content:center;">
+        <div style="width: 150px; height: 250px; border: 2px dashed var(--border-subtle); border-radius: 100px; display:flex; justify-content:center; align-items:center;">
+            <span class="material-symbols-outlined text-dim" style="font-size:48px;">mouse</span>
+        </div>
+        <div class="text-muted text-sm mt-4">Scroll up/down</div>
+    </div>
+</section>
+
+</div>
+
+
+<div class="screen-wrapper">
+    <div class="screen-label">6. Remote Touch</div>
+    
+<section class="screen" id="remote_touch">
+    <button class="back-chevron"><span class="material-symbols-outlined">chevron_left</span></button>
+    <div class="island-pill">
+    <button class="">Mouse</button>
+    <button class="active">Touch</button>
+    <button class="">Keyboard</button>
+</div>
+
+    
+    <div class="main-content" style="align-items:center; justify-content:center;">
+        <div style="width: 100%; height: 350px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 24px; display:flex; justify-content:center; align-items:center;">
+            <span class="material-symbols-outlined text-dim" style="font-size:48px;">touch_app</span>
+        </div>
+        <div class="text-muted text-sm mt-4">Trackpad Area</div>
+    </div>
+</section>
+
+</div>
+
+
+<div class="screen-wrapper">
+    <div class="screen-label">7. Remote Keyboard</div>
+    
+<section class="screen" id="remote_keyboard">
+    <button class="back-chevron"><span class="material-symbols-outlined">chevron_left</span></button>
+    <div class="island-pill">
+    <button class="">Mouse</button>
+    <button class="">Touch</button>
+    <button class="active">Keyboard</button>
+</div>
+
+    
+    <div class="main-content flex-col gap-4 pb-4">
+        <!-- Media Controls -->
+        <div class="flex justify-between w-full px-2 mt-2" style="flex-shrink:0;">
+            <button class="media-btn"><span class="material-symbols-outlined">skip_previous</span></button>
+            <button class="media-btn"><span class="material-symbols-outlined">play_pause</span></button>
+            <button class="media-btn"><span class="material-symbols-outlined">skip_next</span></button>
+            <button class="media-btn"><span class="material-symbols-outlined">volume_down</span></button>
+            <button class="media-btn"><span class="material-symbols-outlined">volume_up</span></button>
+        </div>
+        
+        <!-- Custom Shortcuts -->
+        <div style="flex-shrink:0;">
+            <div class="text-xs text-dim uppercase tracking-widest mb-2 px-2">Custom Shortcuts</div>
+            <div class="flex gap-2 w-full overflow-x-auto pb-2 px-2" style="scrollbar-width: none;">
+                <button class="card" style="padding:8px 16px; border-radius:999px; white-space:nowrap; display:flex; align-items:center; gap:8px;">
+                    <span class="material-symbols-outlined text-muted text-sm">public</span>
+                    <span class="text-primary text-xs">Browser</span>
+                </button>
+                <button class="card" style="padding:8px 16px; border-radius:999px; white-space:nowrap; display:flex; align-items:center; gap:8px;">
+                    <span class="material-symbols-outlined text-muted text-sm">lock</span>
+                    <span class="text-primary text-xs">Lock Screen</span>
+                </button>
+                <button class="card" style="padding:8px 16px; border-radius:999px; white-space:nowrap; display:flex; align-items:center; gap:8px;">
+                    <span class="material-symbols-outlined text-muted text-sm">screenshot</span>
+                    <span class="text-primary text-xs">Screenshot</span>
+                </button>
+            </div>
+        </div>
+        
+        <div style="flex: 1;"></div>
+        
+        <!-- QWERTY Area -->
+        <div class="flex flex-col gap-1 w-full" style="flex-shrink:0;">
+            <div class="layout-row" style="height:36px;">
+                <div class="key-btn mod-key flex-1">Esc</div>
+                <div class="key-btn mod-key flex-1">F1</div>
+                <div class="key-btn mod-key flex-1">F2</div>
+                <div class="key-btn mod-key flex-1">F3</div>
+                <div class="key-btn mod-key flex-1">F4</div>
+                <div class="key-btn mod-key flex-1">F5</div>
+            </div>
+            <div class="layout-row" style="height:44px;">
+                <div class="key-btn flex-1">1</div><div class="key-btn flex-1">2</div><div class="key-btn flex-1">3</div>
+                <div class="key-btn flex-1">4</div><div class="key-btn flex-1">5</div><div class="key-btn flex-1">6</div>
+                <div class="key-btn flex-1">7</div><div class="key-btn flex-1">8</div><div class="key-btn flex-1">9</div>
+                <div class="key-btn flex-1">0</div>
+                <div class="key-btn mod-key" style="width:48px;"><span class="material-symbols-outlined text-sm">backspace</span></div>
+            </div>
+            <div class="layout-row" style="height:44px; padding-left: 5%;">
+                <div class="key-btn flex-1">Q</div><div class="key-btn flex-1">W</div><div class="key-btn flex-1">E</div>
+                <div class="key-btn flex-1">R</div><div class="key-btn flex-1">T</div><div class="key-btn flex-1">Y</div>
+                <div class="key-btn flex-1">U</div><div class="key-btn flex-1">I</div><div class="key-btn flex-1">O</div>
+                <div class="key-btn flex-1">P</div>
+            </div>
+            <div class="layout-row" style="height:44px; padding-right: 5%;">
+                <div class="key-btn mod-key" style="width:15%;">Tab</div>
+                <div class="key-btn flex-1">A</div><div class="key-btn flex-1">S</div><div class="key-btn flex-1">D</div>
+                <div class="key-btn flex-1">F</div><div class="key-btn flex-1">G</div><div class="key-btn flex-1">H</div>
+                <div class="key-btn flex-1">J</div><div class="key-btn flex-1">K</div><div class="key-btn flex-1">L</div>
+                <div class="key-btn mod-key" style="width:15%;"><span class="material-symbols-outlined text-sm">keyboard_return</span></div>
+            </div>
+            <div class="layout-row" style="height:44px;">
+                <div class="key-btn mod-key" style="width:20%;">Shift</div>
+                <div class="key-btn flex-1">Z</div><div class="key-btn flex-1">X</div><div class="key-btn flex-1">C</div>
+                <div class="key-btn flex-1">V</div><div class="key-btn flex-1">B</div><div class="key-btn flex-1">N</div>
+                <div class="key-btn flex-1">M</div>
+                <div class="key-btn mod-key" style="width:20%;">Shift</div>
+            </div>
+            <div class="layout-row mt-1" style="height:44px;">
+                <div class="key-btn mod-key" style="width:44px;">Ctrl</div>
+                <div class="key-btn mod-key" style="width:44px;">Win</div>
+                <div class="key-btn mod-key" style="width:44px;">Alt</div>
+                <div class="key-btn flex-1">Space</div>
+                <div class="key-btn mod-key" style="width:44px;">Alt</div>
+                <div class="key-btn mod-key" style="width:44px;"><span class="material-symbols-outlined text-sm">arrow_left</span></div>
+                <div class="flex-col gap-1" style="width:44px;">
+                    <div class="key-btn mod-key flex-1" style="line-height:0;"><span class="material-symbols-outlined text-sm">arrow_drop_up</span></div>
+                    <div class="key-btn mod-key flex-1" style="line-height:0;"><span class="material-symbols-outlined text-sm">arrow_drop_down</span></div>
+                </div>
+                <div class="key-btn mod-key" style="width:44px;"><span class="material-symbols-outlined text-sm">arrow_right</span></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+</div>
+
+
+<div class="screen-wrapper">
+    <div class="screen-label">8. Inbox Files</div>
+    
+<section class="screen" id="inbox_files">
+    <button class="back-chevron"><span class="material-symbols-outlined">chevron_left</span></button>
+    <div class="island-pill">
+    <button class="active">Files</button>
+    <button class="">Clipboard</button>
+    <button class="">Agents</button>
+</div>
+
+    
+    <div class="main-content">
+        <div class="card flex items-center gap-4">
+            <div class="text-muted"><span class="material-symbols-outlined">description</span></div>
+            <div class="flex-1 min-w-0">
+                <div class="font-bold text-sm text-primary truncate">Project_Design_Brief.pdf</div>
+                <div class="text-xs text-muted mt-1">2.4 MB • Received 5m ago</div>
+            </div>
+        </div>
+        <div class="card flex items-center gap-4">
+            <div class="text-muted"><span class="material-symbols-outlined">image</span></div>
+            <div class="flex-1 min-w-0">
+                <div class="font-bold text-sm text-primary truncate">Screenshot 2026-06-20.png</div>
+                <div class="text-xs text-muted mt-1">840 KB • Received 1h ago</div>
+            </div>
+        </div>
+        <div class="card flex items-center gap-4">
+            <div class="text-muted"><span class="material-symbols-outlined">folder_zip</span></div>
+            <div class="flex-1 min-w-0">
+                <div class="font-bold text-sm text-primary truncate">assets_archive_final.zip</div>
+                <div class="text-xs text-muted mt-1">14.2 MB • Received yesterday</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+</div>
+
+
+<div class="screen-wrapper">
+    <div class="screen-label">9. Inbox Clipboard</div>
+    
+<section class="screen" id="inbox_clipboard">
+    <button class="back-chevron"><span class="material-symbols-outlined">chevron_left</span></button>
+    <div class="island-pill">
+    <button class="">Files</button>
+    <button class="active">Clipboard</button>
+    <button class="">Agents</button>
+</div>
+
+    
+    <div class="main-content">
+        <div class="card flex items-center gap-4">
+            <div class="text-muted"><span class="material-symbols-outlined">content_copy</span></div>
+            <div class="flex-1 min-w-0">
+                <div class="text-sm text-primary truncate">https://github.com/nocturne-labs/core-api/v2</div>
+                <div class="text-xs text-muted mt-1">Sent 2 min ago</div>
+            </div>
+        </div>
+        <div class="card flex items-center gap-4">
+            <div class="text-muted"><span class="material-symbols-outlined">data_object</span></div>
+            <div class="flex-1 min-w-0">
+                <div class="text-xs text-primary truncate font-mono">const theme = createTheme({ colors: { primary: '#8C1845' } });</div>
+                <div class="text-xs text-muted mt-1">Sent 12 min ago</div>
+            </div>
+        </div>
+        <div class="card flex items-center gap-4">
+            <div class="text-muted"><span class="material-symbols-outlined">notes</span></div>
+            <div class="flex-1 min-w-0">
+                <div class="text-sm text-primary truncate">Meeting notes: Remember to check the sensor...</div>
+                <div class="text-xs text-muted mt-1">Sent 1 hr ago</div>
+            </div>
+        </div>
+        <div class="card flex items-center gap-4">
+            <div class="text-muted"><span class="material-symbols-outlined">terminal</span></div>
+            <div class="flex-1 min-w-0">
+                <div class="text-xs text-primary truncate font-mono">ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC...</div>
+                <div class="text-xs text-muted mt-1">Sent 1 day ago</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+</div>
+
+
+<div class="screen-wrapper">
+    <div class="screen-label">10. Inbox Agents</div>
+    
+<section class="screen" id="inbox_agents">
+    <button class="back-chevron"><span class="material-symbols-outlined">chevron_left</span></button>
+    <div class="island-pill">
+    <button class="">Files</button>
+    <button class="">Clipboard</button>
+    <button class="active">Agents</button>
+</div>
+
+    
+    <div class="main-content">
+        <div class="card flex-col gap-3">
+            <div class="flex items-center gap-3">
+                <img src="https://ui-avatars.com/api/?name=C+L&background=1C1E33&color=E0185A&rounded=true" width="40" height="40" style="border-radius:20px;">
+                <div class="flex-1 min-w-0">
+                    <div class="font-bold text-sm text-primary">CodeLinter Bot</div>
+                    <div class="text-xs text-muted">Wants to format 14 files</div>
+                </div>
+            </div>
+            <div class="flex gap-2 w-full mt-2">
+                <button class="btn-deny">Deny</button>
+                <!-- INTENTIONAL DARK ON HIGHLIGHT - Approves uses var(--bg) to make it legible -->
+                <button class="btn-approve">Approve</button>
+            </div>
+        </div>
+        <div class="card flex-col gap-3">
+            <div class="flex items-center gap-3">
+                <img src="https://ui-avatars.com/api/?name=S+B&background=1C1E33&color=39FF14&rounded=true" width="40" height="40" style="border-radius:20px;">
+                <div class="flex-1 min-w-0">
+                    <div class="font-bold text-sm text-primary">Security Scanner</div>
+                    <div class="text-xs text-muted">Run deep analysis on src/</div>
+                </div>
+            </div>
+            <div class="flex gap-2 w-full mt-2">
+                <button class="btn-deny">Deny</button>
+                <!-- INTENTIONAL DARK ON HIGHLIGHT - Approves uses var(--bg) to make it legible -->
+                <button class="btn-approve">Approve</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+</div>
+
+</body>
+</html>
