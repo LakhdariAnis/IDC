@@ -1,16 +1,14 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../core/network/connection_manager.dart' as cm;
 import '../core/network/discovery_service.dart';
+import '../core/network/foreground_service.dart';
 import '../core/network/pc_device.dart';
-import '../core/storage/paired_device_store.dart';
 import '../theme/app_theme.dart';
 import '../widgets/ambient_background.dart';
 import 'home_screen.dart';
 
-// ---------------------------------------------------------------------------
-// Data model for a discovered device blip
-// ---------------------------------------------------------------------------
 class _DiscoveredDevice {
   final String name;
   final String ip;
@@ -29,9 +27,6 @@ class _DiscoveredDevice {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Screen
-// ---------------------------------------------------------------------------
 class GateConnectionScreen extends StatefulWidget {
   const GateConnectionScreen({super.key});
 
@@ -44,45 +39,72 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
   bool _isConnecting = false;
   String? _connectionError;
   PcDevice? _connectedDevice;
-  cm.ConnectionManager? _connectionManager;
   List<_DiscoveredDevice>? _discovered;
+  Timer? _scanTimer;
 
   @override
   void initState() {
     super.initState();
-    _trySavedDevice();
+    ForegroundService.state.addListener(_onConnectionStateChanged);
+    _checkExistingState();
   }
 
-  Future<void> _trySavedDevice() async {
-    final saved = await PairedDeviceStore().getPairedDevice();
-    if (!mounted) return;
-    if (saved != null) {
-      _connectToDevice(saved);
+  @override
+  void dispose() {
+    _stopScanLoop();
+    ForegroundService.state.removeListener(_onConnectionStateChanged);
+    super.dispose();
+  }
+
+  void _checkExistingState() {
+    final current = ForegroundService.state.value;
+    if (current == cm.ConnectionState.connected) {
+      _navigateToHome();
     } else {
-      _startScan();
+      _startScanLoop();
     }
   }
 
-  void _startScan() {
+  void _startScanLoop() {
+    _stopScanLoop();
+    if (_isManualEntry || _discovered != null || _isConnecting) return;
+
     setState(() => _discovered = null);
     DiscoveryService().scan().then((devices) {
       if (!mounted) return;
-      final rng = Random();
-      setState(() {
-        _discovered = devices.map((d) => _DiscoveredDevice(
-          name: d.name,
-          ip: d.ip,
-          wsPort: d.wsPort,
-          pcId: d.pcId,
-          angleDeg: rng.nextDouble() * 360,
-          distance: 95 + rng.nextDouble() * 40,
-        )).toList();
-      });
+      if (devices.isNotEmpty) {
+        final rng = Random();
+        setState(() {
+          _discovered = devices.map((d) => _DiscoveredDevice(
+            name: d.name,
+            ip: d.ip,
+            wsPort: d.wsPort,
+            pcId: d.pcId,
+            angleDeg: rng.nextDouble() * 360,
+            distance: 95 + rng.nextDouble() * 40,
+          )).toList();
+        });
+      } else {
+        _scanTimer = Timer(const Duration(seconds: 3), () {
+          if (mounted) _startScanLoop();
+        });
+      }
     });
+  }
+
+  void _stopScanLoop() {
+    _scanTimer?.cancel();
+    _scanTimer = null;
   }
 
   void _connectToDevice(PcDevice device) {
     if (_isConnecting) return;
+    final current = ForegroundService.state.value;
+    if (current == cm.ConnectionState.connected || current == cm.ConnectionState.connecting) {
+      print('_connectToDevice: already $current, ignoring tap');
+      return;
+    }
+    _stopScanLoop();
     print('_connectToDevice called: ${device.name} @ ${device.ip}:${device.wsPort} pcId=${device.pcId}');
     _connectedDevice = device;
     setState(() {
@@ -90,37 +112,44 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
       _connectionError = null;
       _discovered = null;
     });
-    _connectionManager = cm.ConnectionManager();
-    _connectionManager!.state.addListener(_onConnectionStateChanged);
-    _connectionManager!.connect(device);
+    try {
+      ForegroundService.connect(device);
+    } catch (e) {
+      print('_connectToDevice: ForegroundService.connect failed: $e');
+      setState(() {
+        _isConnecting = false;
+        _connectionError = 'Connection failed';
+      });
+    }
   }
 
   void _onConnectionStateChanged() {
     if (!mounted) return;
-    final state = _connectionManager!.state.value;
+    final state = ForegroundService.state.value;
     print('_onConnectionStateChanged: state=$state');
     if (state == cm.ConnectionState.connected) {
-      print('ConnectionManager state=connected, navigating to HomeScreen');
-      _connectionManager!.state.removeListener(_onConnectionStateChanged);
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => HomeScreen(
-            device: _connectedDevice!,
-            connectionManager: _connectionManager!,
-          ),
-        ),
-      );
-    } else if (state == cm.ConnectionState.error || state == cm.ConnectionState.disconnected) {
+      _navigateToHome();
+    } else if (state == cm.ConnectionState.error) {
       _onConnectionFailed();
     }
+  }
+
+  void _navigateToHome() {
+    if (!mounted) return;
+    print('Connected, navigating to HomeScreen');
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => HomeScreen(
+          device: _connectedDevice!,
+        ),
+      ),
+    );
   }
 
   void _onConnectionFailed() {
     if (!mounted) return;
     print('_onConnectionFailed triggered');
-    _connectionManager?.state.removeListener(_onConnectionStateChanged);
-    _connectionManager?.disconnect();
-    _connectionManager = null;
+    ForegroundService.disconnect();
     setState(() {
       _isConnecting = false;
       _connectionError = 'Connection failed';
@@ -128,7 +157,7 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
     Future.delayed(const Duration(seconds: 3), () {
       if (!mounted) return;
       setState(() => _connectionError = null);
-      _startScan();
+      _startScanLoop();
     });
   }
 
@@ -138,9 +167,6 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
       body: AmbientBackground(
         child: Stack(
           children: [
-          // ----------------------------------------------------------------
-          // CENTER CONTENT (icon + pulsing rings + radar blip)
-          // ----------------------------------------------------------------
           AnimatedContainer(
             duration: const Duration(milliseconds: 500),
             curve: Curves.easeOutCubic,
@@ -157,8 +183,6 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Radar + text move together as a unit so the title stays
-                  // directly under the pink icon in manual-entry mode.
                   Transform.translate(
                     offset: const Offset(0, -130),
                     child: Column(
@@ -243,9 +267,6 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
             ),
           ),
 
-          // ----------------------------------------------------------------
-          // ERROR OVERLAY
-          // ----------------------------------------------------------------
           if (_connectionError != null)
             Positioned(
               top: 60,
@@ -263,9 +284,6 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
               ),
             ),
 
-          // ----------------------------------------------------------------
-          // BOTTOM CONTENT (Enter IP Manually / Manual Entry Card)
-          // ----------------------------------------------------------------
           Align(
             alignment: Alignment.bottomCenter,
             child: AnimatedSwitcher(
@@ -302,12 +320,11 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
             ),
           ),
         ],
-      ),
+        ),
       ),
     );
   }
 
-  // ------------------------------------------------------------------
   Widget _buildEnterIpText() {
     return Container(
       key: const ValueKey('enter_ip_text'),
@@ -315,7 +332,10 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
-          onTap: () => setState(() => _isManualEntry = true),
+          onTap: () {
+            setState(() => _isManualEntry = true);
+            _stopScanLoop();
+          },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             color: Colors.transparent,
@@ -333,7 +353,6 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
     );
   }
 
-  // ------------------------------------------------------------------
   Widget _buildManualEntryCard() {
     return Container(
       key: const ValueKey('manual_entry_card'),
@@ -447,7 +466,7 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
                 ),
                 onPressed: () {
                   setState(() => _isManualEntry = false);
-                  _startScan();
+                  _startScanLoop();
                 },
                 child: const Text(
                   'Back to Scanning',
@@ -462,9 +481,6 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Radar Blip Widget
-// ---------------------------------------------------------------------------
 class _RadarBlip extends StatefulWidget {
   final _DiscoveredDevice device;
   final VoidCallback onTap;
@@ -514,7 +530,6 @@ class _RadarBlipState extends State<_RadarBlip>
 
     const double circleSize = 42;
     const double iconSize = 16;
-    // Center of the 480x480 Stack that wraps the radar area
     const double centerX = 240;
     const double centerY = 240;
 
@@ -560,9 +575,6 @@ class _RadarBlipState extends State<_RadarBlip>
   }
 }
 
-// ---------------------------------------------------------------------------
-// Blip painter: white circle with icon punched out via saveLayer + BlendMode.clear
-// ---------------------------------------------------------------------------
 class _BlipPainter extends CustomPainter {
   final double iconSize;
   const _BlipPainter({required this.iconSize});
@@ -573,13 +585,10 @@ class _BlipPainter extends CustomPainter {
     final radius = size.width / 2;
     final rect = Offset.zero & size;
 
-    // 1. Open a compositing layer so blend modes work correctly
     canvas.saveLayer(rect, Paint());
 
-    // 2. Draw solid white circle (destination)
     canvas.drawCircle(center, radius, Paint()..color = Colors.white);
 
-    // 3. Prepare the icon glyph as a TextPainter
     final tp = TextPainter(textDirection: TextDirection.ltr)
       ..text = TextSpan(
         text: String.fromCharCode(Icons.desktop_windows.codePoint),
@@ -597,14 +606,10 @@ class _BlipPainter extends CustomPainter {
       center.dy - tp.height / 2,
     );
 
-    // 4. Draw the icon with BlendMode.dstOut — this removes the destination
-    //    (the white circle) wherever the source (icon glyph) has pixels.
-    //    Result: white circle with a transparent icon-shaped hole.
     canvas.saveLayer(rect, Paint()..blendMode = BlendMode.dstOut);
     tp.paint(canvas, glyphOffset);
     canvas.restore();
 
-    // 5. Close the main compositing layer
     canvas.restore();
   }
 
@@ -612,9 +617,6 @@ class _BlipPainter extends CustomPainter {
   bool shouldRepaint(covariant _BlipPainter old) => old.iconSize != iconSize;
 }
 
-// ---------------------------------------------------------------------------
-// Main crimson icon circle (unchanged)
-// ---------------------------------------------------------------------------
 class _IconCircle extends StatelessWidget {
   const _IconCircle();
 
@@ -643,9 +645,6 @@ class _IconCircle extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Pulsing ring (unchanged)
-// ---------------------------------------------------------------------------
 class PulseRing extends StatefulWidget {
   final Duration delay;
   const PulseRing({super.key, required this.delay});

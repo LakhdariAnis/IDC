@@ -7,10 +7,11 @@ import '../network/pc_device.dart';
 class PairedDeviceStore {
   static const _key = 'paired_device';
 
-  Future<void> savePairedDevice(PcDevice device) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, jsonEncode(device.toJson()));
-  }
+  // TODO: re-enable once single-system flow is confirmed stable
+  // Future<void> savePairedDevice(PcDevice device) async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   await prefs.setString(_key, jsonEncode(device.toJson()));
+  // }
 
   Future<PcDevice?> getPairedDevice() async {
     final prefs = await SharedPreferences.getInstance();

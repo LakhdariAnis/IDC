@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import '../core/network/connection_manager.dart' as cm;
+import '../core/network/foreground_service.dart';
 import '../core/network/pc_device.dart';
-import '../theme/app_theme.dart';
 import '../widgets/app_shell.dart';
 import '../widgets/connected_status_content.dart';
 import 'main_hub_screen.dart';
@@ -10,12 +9,10 @@ enum AppPage { hub, sensors, remote, inbox }
 
 class HomeScreen extends StatefulWidget {
   final PcDevice device;
-  final cm.ConnectionManager connectionManager;
 
   const HomeScreen({
     super.key,
     required this.device,
-    required this.connectionManager,
   });
 
   @override
@@ -30,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case AppPage.hub:
         return ConnectedStatusContent(
           device: widget.device,
-          connectionState: widget.connectionManager.state,
+          connectionState: ForegroundService.state,
         );
       default:
         return const SizedBox.shrink();
@@ -40,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildBody() {
     switch (_currentPage) {
       case AppPage.hub:
-        return MainHubContent(connectionManager: widget.connectionManager);
+        return const MainHubContent();
       default:
         return const SizedBox.shrink();
     }

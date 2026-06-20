@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import '../core/network/connection_manager.dart' as cm;
 import '../theme/app_theme.dart';
 
 class MainHubContent extends StatelessWidget {
-  final cm.ConnectionManager? connectionManager;
-
-  const MainHubContent({super.key, this.connectionManager});
+  const MainHubContent({super.key});
 
   @override
   Widget build(BuildContext context) {
