@@ -41,6 +41,7 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
   PcDevice? _connectedDevice;
   List<_DiscoveredDevice>? _discovered;
   Timer? _scanTimer;
+  Timer? _stateCheckTimer;
 
   @override
   void initState() {
@@ -52,6 +53,7 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
   @override
   void dispose() {
     _stopScanLoop();
+    _stateCheckTimer?.cancel();
     ForegroundService.state.removeListener(_onConnectionStateChanged);
     super.dispose();
   }
@@ -60,8 +62,13 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
     final current = ForegroundService.state.value;
     if (current == cm.ConnectionState.connected) {
       _navigateToHome();
+    } else if (current == cm.ConnectionState.connecting) {
+      setState(() => _isConnecting = true);
     } else {
-      _startScanLoop();
+      _stateCheckTimer = Timer(const Duration(milliseconds: 500), () {
+        if (!mounted) return;
+        _startScanLoop();
+      });
     }
   }
 
@@ -80,7 +87,7 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
             ip: d.ip,
             wsPort: d.wsPort,
             pcId: d.pcId,
-            angleDeg: rng.nextDouble() * 360,
+            angleDeg: rng.nextDouble() * 180,
             distance: 95 + rng.nextDouble() * 40,
           )).toList();
         });
@@ -124,6 +131,8 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
   }
 
   void _onConnectionStateChanged() {
+    _stateCheckTimer?.cancel();
+    _stateCheckTimer = null;
     if (!mounted) return;
     final state = ForegroundService.state.value;
     print('_onConnectionStateChanged: state=$state');
@@ -136,12 +145,12 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
 
   void _navigateToHome() {
     if (!mounted) return;
+    final device = _connectedDevice ?? ForegroundService.connectedDevice;
+    if (device == null) return;
     print('Connected, navigating to HomeScreen');
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => HomeScreen(
-          device: _connectedDevice!,
-        ),
+        builder: (_) => HomeScreen(device: device),
       ),
     );
   }
@@ -291,6 +300,7 @@ class _GateConnectionScreenState extends State<GateConnectionScreen> {
               layoutBuilder:
                   (Widget? currentChild, List<Widget> previousChildren) {
                     return Stack(
+                      clipBehavior: Clip.none,
                       alignment: Alignment.bottomCenter,
                       children: <Widget>[
                         ...previousChildren,

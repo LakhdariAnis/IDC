@@ -6,14 +6,13 @@ class PersistentConnectionStore {
   static const _keyDeviceName = 'last_connected_device_name';
   static const _keyPcId = 'last_connected_pc_id';
 
-  // TODO: re-enable once single-system flow is confirmed stable
-  // Future<void> save(String ip, int port, String deviceName, String pcId) async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   await prefs.setString(_keyIp, ip);
-  //   await prefs.setInt(_keyPort, port);
-  //   await prefs.setString(_keyDeviceName, deviceName);
-  //   await prefs.setString(_keyPcId, pcId);
-  // }
+  Future<void> save(String ip, int port, String deviceName, String pcId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyIp, ip);
+    await prefs.setInt(_keyPort, port);
+    await prefs.setString(_keyDeviceName, deviceName);
+    await prefs.setString(_keyPcId, pcId);
+  }
 
   Future<({String ip, int port, String deviceName, String pcId})?>
       load() async {

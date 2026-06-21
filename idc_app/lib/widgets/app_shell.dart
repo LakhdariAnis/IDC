@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'island_pill.dart';
@@ -7,6 +8,8 @@ class AppShell extends StatelessWidget {
   final Widget pillContent;
   final bool showBackButton;
   final VoidCallback? onBackPressed;
+  final bool showSettingsButton;
+  final VoidCallback? onSettingsPressed;
   final Widget body;
 
   const AppShell({
@@ -16,58 +19,104 @@ class AppShell extends StatelessWidget {
     required this.body,
     this.showBackButton = false,
     this.onBackPressed,
+    this.showSettingsButton = false,
+    this.onSettingsPressed,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            if (showBackButton)
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && onBackPressed != null) {
+          onBackPressed!();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppTheme.background,
+        body: SafeArea(
+          child: Column(
+            children: [
               Padding(
-                padding: const EdgeInsets.only(left: 16, top: 24),
-                child: Row(
+                padding: EdgeInsets.only(top: (showBackButton || showSettingsButton) ? 16 : 24),
+                child: Stack(
+                  alignment: Alignment.center,
                   children: [
-                    GestureDetector(
-                      onTap: onBackPressed,
-                      child: const Icon(
-                        Icons.chevron_left,
-                        color: AppTheme.textPrimary,
-                        size: 28,
+                    Center(
+                        child: IslandPill(
+                        child: PageTransitionSwitcher(
+                          duration: const Duration(milliseconds: 380),
+                          transitionBuilder:
+                              (child, primaryAnimation, secondaryAnimation) {
+                            return FadeThroughTransition(
+                              animation: primaryAnimation,
+                              secondaryAnimation: secondaryAnimation,
+                              fillColor: Colors.transparent,
+                              child: child,
+                            );
+                          },
+                          child: SizedBox(
+                            key: ValueKey('pill_$currentPage'),
+                            child: Center(child: pillContent),
+                          ),
+                        ),
                       ),
                     ),
-                    const Spacer(),
+                    if (showBackButton)
+                      Positioned(
+                        left: 16,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: GestureDetector(
+                            onTap: onBackPressed,
+                            child: const Icon(
+                              Icons.chevron_left,
+                              color: AppTheme.textMuted,
+                              size: 28,
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (showSettingsButton)
+                      Positioned(
+                        right: 16,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: GestureDetector(
+                            onTap: onSettingsPressed,
+                            child: const Icon(
+                              Icons.settings,
+                              color: AppTheme.textMuted,
+                              size: 28,
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-            Padding(
-              padding: EdgeInsets.only(top: showBackButton ? 16 : 24),
-              child: IslandPill(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  transitionBuilder: (child, animation) =>
-                      FadeTransition(opacity: animation, child: child),
+              Expanded(
+                child: PageTransitionSwitcher(
+                  duration: const Duration(milliseconds: 380),
+                  transitionBuilder:
+                      (child, primaryAnimation, secondaryAnimation) {
+                    return FadeThroughTransition(
+                      animation: primaryAnimation,
+                      secondaryAnimation: secondaryAnimation,
+                      fillColor: Colors.transparent,
+                      child: child,
+                    );
+                  },
                   child: SizedBox(
-                    key: ValueKey('pill_$currentPage'),
-                    child: Center(child: pillContent),
+                    key: ValueKey('body_$currentPage'),
+                    child: body,
                   ),
                 ),
               ),
-            ),
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                transitionBuilder: (child, animation) =>
-                    FadeTransition(opacity: animation, child: child),
-                child: SizedBox(
-                  key: ValueKey('body_$currentPage'),
-                  child: body,
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

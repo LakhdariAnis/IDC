@@ -1,6 +1,5 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
 class IslandPill extends StatelessWidget {
   final Widget child;
@@ -17,7 +16,7 @@ class IslandPill extends StatelessWidget {
         child: BackdropFilter(
           filter: ui.ImageFilter.blur(sigmaX: 25, sigmaY: 25),
           child: Container(
-            height: 44,
+            height: 52,
             width: pillWidth,
             alignment: Alignment.center,
             decoration: BoxDecoration(

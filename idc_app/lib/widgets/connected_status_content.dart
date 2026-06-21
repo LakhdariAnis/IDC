@@ -29,7 +29,7 @@ class ConnectedStatusContent extends StatelessWidget {
                 device.name,
                 style: const TextStyle(
                   color: AppTheme.textPrimary,
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -48,7 +48,7 @@ class ConnectedStatusContent extends StatelessWidget {
                     isConnected ? 'Connected' : 'Disconnected',
                     style: TextStyle(
                       color: isConnected ? AppTheme.green : AppTheme.textDim,
-                      fontSize: 11,
+                      fontSize: 13,
                       fontWeight: FontWeight.normal,
                     ),
                   ),

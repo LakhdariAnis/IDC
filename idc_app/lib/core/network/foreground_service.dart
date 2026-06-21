@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import '../storage/device_id_store.dart';
+import '../storage/persistent_connection_store.dart';
 import 'connection_manager.dart' as cm;
 import 'foreground_task_handler.dart';
 import 'pc_device.dart';
@@ -38,39 +39,36 @@ class ForegroundService {
     FlutterForegroundTask.initCommunicationPort();
     FlutterForegroundTask.addTaskDataCallback(_onTaskData);
 
-    // TODO: re-enable auto-reconnect once single-system flow is confirmed stable
-    // if (_autoReconnect) {
-    //   _tryAutoReconnect();
-    // }
+    if (autoReconnect) {
+      _tryAutoReconnect();
+    }
   }
 
-  // TODO: re-enable auto-reconnect once single-system flow is confirmed stable
-  // static Future<void> _tryAutoReconnect() async {
-  //   final saved = await PersistentConnectionStore().load();
-  //   if (saved != null) {
-  //     state.value = cm.ConnectionState.connecting;
-  //     connect(
-  //       PcDevice(
-  //         name: saved.deviceName,
-  //         ip: saved.ip,
-  //         wsPort: saved.port,
-  //         pcId: saved.pcId,
-  //       ),
-  //     );
-  //   }
-  // }
+  static Future<void> _tryAutoReconnect() async {
+    final saved = await PersistentConnectionStore().load();
+    if (saved != null) {
+      state.value = cm.ConnectionState.connecting;
+      connect(
+        PcDevice(
+          name: saved.deviceName,
+          ip: saved.ip,
+          wsPort: saved.port,
+          pcId: saved.pcId,
+        ),
+      );
+    }
+  }
 
   static Future<void> connect(PcDevice device) async {
     _connectedDevice = device;
     state.value = cm.ConnectionState.connecting;
 
-    // TODO: re-enable persistence once single-system flow is confirmed stable
-    // await PersistentConnectionStore().save(
-    //   device.ip,
-    //   device.wsPort,
-    //   device.name,
-    //   device.pcId,
-    // );
+    await PersistentConnectionStore().save(
+      device.ip,
+      device.wsPort,
+      device.name,
+      device.pcId,
+    );
 
     final deviceId = await DeviceIdStore().getDeviceId();
 
@@ -106,8 +104,7 @@ class ForegroundService {
     FlutterForegroundTask.stopService();
     _connectedDevice = null;
     state.value = cm.ConnectionState.idle;
-    // TODO: re-enable persistence once single-system flow is confirmed stable
-    // PersistentConnectionStore().clear();
+    PersistentConnectionStore().clear();
   }
 
   static PcDevice? get connectedDevice => _connectedDevice;
