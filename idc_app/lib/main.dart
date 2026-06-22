@@ -4,16 +4,26 @@ import 'core/network/foreground_service.dart';
 import 'core/storage/device_id_store.dart';
 import 'theme/app_theme.dart';
 import 'screens/gate_connection_screen.dart';
+import 'screens/easter_eggs/portal_painter.dart';
+import 'core/clipboard_history.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-  ));
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(statusBarColor: Colors.transparent),
+  );
   final deviceId = await DeviceIdStore().getDeviceId();
   debugPrint('Device ID: $deviceId');
   ForegroundService.initialize(autoReconnect: true);
+
+  await ClipboardHistory.instance.load();
+
+  try {
+    const platform = MethodChannel('com.example.idc_app/tile');
+    await platform.invokeMethod('requestTile');
+  } catch (_) {}
+
   runApp(const MyApp());
 }
 

@@ -43,10 +43,21 @@
          <meta-data
              android:name="flutterEmbedding"
              android:value="2" />
-         <service
+          <service
              android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
              android:foregroundServiceType="connectedDevice"
              android:exported="false" />
+         <activity
+             android:name="com.example.idc_app.ShareReceiverActivity"
+             android:exported="true"
+             android:theme="@android:style/Theme.NoDisplay"
+             android:excludeFromRecents="true">
+             <intent-filter>
+                 <action android:name="android.intent.action.SEND" />
+                 <category android:name="android.intent.category.DEFAULT" />
+                 <data android:mimeType="text/plain" />
+             </intent-filter>
+         </activity>
      </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

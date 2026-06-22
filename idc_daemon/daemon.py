@@ -3,6 +3,13 @@ import threading
 
 from discovery import serve_discovery
 from connection_server import main as run_ws_server
+from local_trigger import run_server as run_unix_server
+
+
+async def main_async():
+    ws_task = asyncio.create_task(run_ws_server())
+    unix_task = asyncio.create_task(run_unix_server())
+    await asyncio.gather(ws_task, unix_task)
 
 
 def main():
@@ -18,7 +25,7 @@ def main():
     disc_thread.start()
 
     try:
-        asyncio.run(run_ws_server())
+        asyncio.run(main_async())
     except KeyboardInterrupt:
         pass
     finally:

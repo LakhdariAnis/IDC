@@ -43,6 +43,7 @@ class IdcTaskHandler extends TaskHandler {
   }
 
   void _connect() async {
+    if (_isConnected) return;
     print('IdcTaskHandler._connect: connecting to ws://$_ip:$_port');
     _sendState('connecting');
     _updateNotification('IDC', 'Connecting to $_deviceName...');
@@ -85,11 +86,28 @@ class IdcTaskHandler extends TaskHandler {
 
     try {
       final data = jsonDecode(message as String) as Map<String, dynamic>;
+
+      if (data['type'] == 'pong') {
+        _unansweredPings = 0;
+        return;
+      }
+
       if (data['status'] == 'accepted') {
         print('IdcTaskHandler: handshake accepted for $_deviceName');
         _isConnected = true;
         _sendState('connected');
         _updateNotification('IDC', 'Connected to $_deviceName');
+      }
+
+      if (data['type'] == 'clipboard_push') {
+        final payload = data['payload'] as Map? ?? {};
+        final text = payload['text'] as String? ?? '';
+        print('IdcTaskHandler: clipboard_push received (${text.length} chars)');
+        FlutterForegroundTask.sendDataToMain({
+          'type': 'clipboard_received',
+          'text': text,
+        });
+        return;
       }
     } catch (_) {
       print('IdcTaskHandler: non-json message from server: $message');
@@ -117,7 +135,14 @@ class IdcTaskHandler extends TaskHandler {
 
   void _startReconnectLoop() {
     _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    if (_isConnected) return;
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (_isConnected) {
+        _heartbeatTimer?.cancel();
+        _heartbeatTimer = null;
+        return;
+      }
       _connect();
     });
   }
@@ -127,7 +152,7 @@ class IdcTaskHandler extends TaskHandler {
     if (!_isConnected || _channel == null) return;
 
     try {
-      _channel!.sink.add('ping');
+      _channel!.sink.add(jsonEncode({'type': 'ping'}));
     } catch (_) {
       return;
     }
@@ -158,6 +183,25 @@ class IdcTaskHandler extends TaskHandler {
           data['title'] as String? ?? 'IDC',
           data['text'] as String? ?? '',
         );
+      } else if (command == 'clipboard_send') {
+        final text = data['text'] as String? ?? '';
+        if (text.isEmpty) {
+          print('IdcTaskHandler: clipboard_send — empty text, ignoring');
+          return;
+        }
+        if (_channel == null || !_isConnected) {
+          print('IdcTaskHandler: clipboard_send — no active connection');
+          return;
+        }
+        print('IdcTaskHandler: clipboard_send — sending ${text.length} chars to PC');
+        _channel!.sink.add(jsonEncode({
+          'type': 'clipboard_push',
+          'payload': {'text': text},
+        }));
+        FlutterForegroundTask.sendDataToMain({
+          'type': 'clipboard_sent',
+          'text': text,
+        });
       }
     }
   }

@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import '../storage/device_id_store.dart';
+import '../clipboard_history.dart';
+import '../storage/clipboard_store.dart';
 import '../storage/persistent_connection_store.dart';
 import 'connection_manager.dart' as cm;
 import 'foreground_task_handler.dart';
@@ -127,7 +132,37 @@ class ForegroundService {
     if (type == 'state') {
       final stateStr = data['state'] as String? ?? 'idle';
       state.value = _parseState(stateStr);
+    } else if (type == 'clipboard_received') {
+      final text = data['text'] as String? ?? '';
+      _handleClipboardReceived(text);
+    } else if (type == 'clipboard_sent') {
+      final text = data['text'] as String? ?? '';
+      if (text.isNotEmpty) {
+        ClipboardHistory.instance.add(text, ClipDirection.phoneToPC);
+      }
     }
+  }
+
+  static Future<void> _handleClipboardReceived(String text) async {
+    print('ForegroundService: clipboard_received (${text.length} chars)');
+
+    await Clipboard.setData(ClipboardData(text: text));
+    print('ForegroundService: clipboard set');
+
+    ClipboardHistory.instance.add(text, ClipDirection.pcToPhone);
+
+    updateNotification(title: 'IDC', text: 'Clipboard received');
+    print('ForegroundService: notification updated to "Clipboard received"');
+
+    await Future.delayed(const Duration(seconds: 3));
+
+    final device = _connectedDevice;
+    if (device != null) {
+      updateNotification(title: 'IDC', text: 'Connected to ${device.name}');
+    } else {
+      updateNotification(title: 'IDC', text: 'Connected');
+    }
+    print('ForegroundService: notification restored');
   }
 
   static cm.ConnectionState _parseState(String s) {

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../core/clipboard_history.dart';
+import '../core/storage/clipboard_store.dart';
 
 class _FileItem {
   final IconData icon;
@@ -7,15 +9,6 @@ class _FileItem {
   final String meta;
   final bool incoming;
   const _FileItem({required this.icon, required this.name, required this.meta, required this.incoming});
-}
-
-enum _ClipboardType { url, code, text, pin, terminal }
-
-class _ClipboardItem {
-  final _ClipboardType type;
-  final String content;
-  final String time;
-  const _ClipboardItem({required this.type, required this.content, required this.time});
 }
 
 enum InboxTab { files, clipboard, agents }
@@ -196,65 +189,68 @@ class _FilesBody extends StatelessWidget {
   }
 }
 
-IconData _iconForType(_ClipboardType type) {
-  switch (type) {
-    case _ClipboardType.url:
-      return Icons.link;
-    case _ClipboardType.code:
-      return Icons.data_object;
-    case _ClipboardType.text:
-      return Icons.notes;
-    case _ClipboardType.pin:
-      return Icons.pin;
-    case _ClipboardType.terminal:
-      return Icons.terminal;
-  }
+const _dayNames = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+
+String _formatCardDate(DateTime dt) {
+  final twoDigits = (int n) => n.toString().padLeft(2, '0');
+  final dayName = _dayNames[dt.weekday - 1];
+  final time = '${twoDigits(dt.hour)}:${twoDigits(dt.minute)}';
+  return '$dayName ${twoDigits(dt.day)}/${twoDigits(dt.month)} - $time';
 }
 
 class _ClipboardCard extends StatelessWidget {
-  final _ClipboardItem item;
-  const _ClipboardCard({required this.item});
+  final ClipboardEntry entry;
+  const _ClipboardCard({required this.entry});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.borderSubtle),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Icon(_iconForType(item.type), size: 18, color: AppTheme.textMuted),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.content,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppTheme.textPrimary,
-                      fontFamily: (item.type == _ClipboardType.code || item.type == _ClipboardType.terminal)
-                          ? 'JetBrains Mono'
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.time,
-                    style: const TextStyle(fontSize: 11, color: AppTheme.textDim),
-                  ),
-                ],
+    final isPhoneToPc = entry.direction == ClipDirection.phoneToPC;
+    return GestureDetector(
+      onLongPress: () {
+        final id = entry.id;
+        if (id != null) ClipboardHistory.instance.remove(id);
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppTheme.borderSubtle),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(
+                isPhoneToPc ? Icons.phone_android : Icons.computer,
+                size: 18,
+                color: isPhoneToPc ? AppTheme.crimson : AppTheme.green,
               ),
-            ),
-          ],
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _formatCardDate(entry.timestamp),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      entry.text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 11, color: AppTheme.textDim),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -264,21 +260,62 @@ class _ClipboardCard extends StatelessWidget {
 class _ClipboardBody extends StatelessWidget {
   const _ClipboardBody();
 
-  static const List<_ClipboardItem> _items = [
-    _ClipboardItem(type: _ClipboardType.url, content: 'https://github.com/nocturne-labs/core-api/v2', time: 'Sent 2 min ago'),
-    _ClipboardItem(type: _ClipboardType.code, content: "const theme = createTheme({ colors: { primary: '#8C1845' } });", time: 'Sent 12 min ago'),
-    _ClipboardItem(type: _ClipboardType.text, content: 'Meeting notes: Remember to check the sensor latency logs for Pixel 8 Pro.', time: 'Sent 1 hr ago'),
-    _ClipboardItem(type: _ClipboardType.pin, content: '6-digit verification code: 882-149', time: 'Sent 3 hrs ago'),
-    _ClipboardItem(type: _ClipboardType.terminal, content: 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC...', time: 'Sent 1 day ago'),
-  ];
-
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
-      itemCount: _items.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 10),
-      itemBuilder: (context, index) => _ClipboardCard(item: _items[index]),
+    return ListenableBuilder(
+      listenable: ClipboardHistory.instance,
+      builder: (context, _) {
+        final entries = ClipboardHistory.instance.entries;
+        if (entries.isEmpty) {
+          return const Center(
+            child: Text(
+              'No clipboard history yet',
+              style: TextStyle(color: Colors.white38),
+            ),
+          );
+        }
+        return Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: entries.length,
+                itemBuilder: (context, index) {
+                  final entry = entries[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _ClipboardCard(entry: entry),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: GestureDetector(
+                onTap: () => ClipboardHistory.instance.clear(),
+                child: Container(
+                  width: MediaQuery.of(context).size.width / 3,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppTheme.crimson.withAlpha(25),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.crimson.withAlpha(80)),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Clear All',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.crimson,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

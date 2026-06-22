@@ -7,6 +7,7 @@ import websockets
 from websockets.exceptions import ConnectionClosed
 
 from pairing_store import is_paired, save_paired_device
+import router
 
 
 async def _handle(websocket):
@@ -53,19 +54,22 @@ async def _handle(websocket):
         save_paired_device(device_id, device_name)
 
     await websocket.send(json.dumps({"status": "accepted"}))
-    print("  Sent accepted response, entering heartbeat loop")
+    print("  Sent accepted response, entering message loop")
+
+    router.context["active_ws"] = websocket
 
     try:
         async for message in websocket:
-            if message == "ping":
-                await websocket.send("pong")
+            await router.dispatch(message, websocket, router.context)
     except ConnectionClosed:
         pass
     except Exception:
-        print(f"  Connection handler error during heartbeat:", file=sys.stderr)
+        print(f"  Connection handler error during message loop:", file=sys.stderr)
         traceback.print_exc()
-
-    print(f"  Disconnected")
+    finally:
+        if router.context.get("active_ws") is websocket:
+            router.context["active_ws"] = None
+        print(f"  Disconnected")
 
 
 async def main():
